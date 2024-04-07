@@ -42,6 +42,55 @@ const char *get_return_names(json_object *node)
     }
 }
 
+long file_size(FILE *file) {
+    long size;
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    rewind(file);
+    return size;
+}
+
+char* read_file_to_string(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Failed to open file: %s\n", filename);
+        return NULL;
+    }
+
+    long size = file_size(file);
+
+
+    char *buffer = (char *)malloc(size + 1);
+    if (buffer == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        fclose(file);
+        return NULL;
+    }
+
+
+    fread(buffer, size, 1, file);
+    buffer[size] = '\0'; 
+
+    fclose(file);
+
+    return buffer;
+}
+
+int find_all_occurrences(const char *str, const char *substr) {
+    int substr_len = strlen(substr);
+    const char *ptr = str;
+    int pos = 0;
+    while ((ptr = strstr(ptr, substr)) != NULL) {
+        ifCount++;
+        ptr += substr_len; 
+        pos = ptr - str;
+    }
+    if (pos == 0)
+        printf("'%s' not found\n", substr);
+    return ifCount;
+}
+
+
 void get_parameter(json_object *node)
 {
     if (1) {
@@ -60,24 +109,6 @@ void get_parameter(json_object *node)
         else {
             printf("parameter: %s\n", "NULL");
         }
-    }
-}
-
-void find_if(json_object *node)
-{
-    json_object *body = json_object_object_get(node, "body");
-    json_object *block_items = json_object_object_get(body, "block_items");
-    if (block_items && json_object_is_type(block_items, json_type_array)) {
-        int if_count = 0;
-        int block_count = json_object_array_length(block_items);
-        for (int i = 0; i < block_count; i++) {
-            json_object *item = json_object_array_get_idx(block_items, i);
-            json_object *nodetype = json_object_object_get(item, "_nodetype");
-            if (strcmp(json_object_get_string(nodetype), "If") == 0) {
-                if_count++;
-            }
-        }
-        printf("Number of If Conditions: %d\n\n", if_count);
     }
 }
 
@@ -104,6 +135,7 @@ void parse_json(const char *target)
         printf("Error occurred while loading json file!!!\n\n");
         return;
     }
+    char *json_string = read_file_to_string(target);
     json_object *ext = json_object_object_get(file, "ext");
     json_object *jobj = json_tokener_parse(json_object_get_string(file));
     if (ext && json_object_is_type(ext, json_type_array)){
@@ -118,12 +150,11 @@ void parse_json(const char *target)
                 printf("funcName: %s\n", segmentation_json(node));
                 printf("return Type: %s\n", get_return_names(decl));
                 get_parameter(node);
-                find_if(node);
-                // find_nodetype(node, "if");
-                // json_object_put(node);
+
                 printf("\n-----------------------\n\n");
             }
         }
+        printf("Total If Count: %d\n", find_all_occurrences(json_string, "If"));
     } else {
         printf("Invalid JSON array!\n");
     }
